@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Radiology Positioning Trainer",
+    "slug": "radiology-positioning-trainer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0B7B8C",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "The camera is used to capture hand positioning images for X-ray positioning training.",
+        "NSPhotoLibraryUsageDescription": "Access to photos is needed so you can select an existing hand positioning image for analysis.",
+        "NSPhotoLibraryAddUsageDescription": "Captured positioning images may be saved to your photo library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B7B8C",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Radiology Positioning Trainer to access your camera for capturing hand positioning images."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Radiology Positioning Trainer to access your photos to select positioning images for analysis."
+        }
+      ],
+      "expo-media-library",
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
