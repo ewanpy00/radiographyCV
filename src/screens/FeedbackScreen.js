@@ -1,63 +1,65 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  TouchableOpacity,
-  Alert,
+  View, Text, StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '../components/Header';
 import Button from '../components/Button';
-import { FeedbackItem, ScoreRing } from '../components/FeedbackCard';
+import HandDiagram from '../components/HandDiagram';
 import { analyzePositioning } from '../services/claudeApi';
 import { colors, typography, spacing, radius, shadows } from '../constants/theme';
-
 
 function LoadingState() {
   const steps = [
     'Uploading image…',
     'Analyzing hand alignment…',
-    'Evaluating rotation & angulation…',
+    'Evaluating rotation…',
     'Checking centering…',
     'Assessing finger spread…',
-    'Verifying projection accuracy…',
     'Generating feedback…',
   ];
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 1800);
+    const id = setInterval(() => setStep(s => Math.min(s + 1, steps.length - 1)), 1800);
     return () => clearInterval(id);
   }, []);
   return (
-    <View style={loadStyles.root}>
-      <View style={loadStyles.card}>
+    <View style={load.root}>
+      <View style={load.card}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={loadStyles.title}>AI Analysis in Progress</Text>
-        <Text style={loadStyles.step}>{steps[step]}</Text>
-        <View style={loadStyles.dotRow}>
+        <Text style={load.title}>Analyzing</Text>
+        <Text style={load.step}>{steps[step]}</Text>
+        <View style={load.dots}>
           {steps.map((_, i) => (
-            <View key={i} style={[loadStyles.dot, i <= step && loadStyles.dotActive]} />
+            <View key={i} style={[load.dot, i <= step && load.dotOn]} />
           ))}
         </View>
       </View>
-      <Text style={loadStyles.note}>Claude Vision is evaluating your positioning…</Text>
     </View>
   );
 }
 
 function ErrorState({ message, onRetry }) {
   return (
-    <View style={errStyles.root}>
-      <View style={errStyles.card}>
-        <Text style={errStyles.icon}>⚠️</Text>
-        <Text style={errStyles.title}>Analysis Failed</Text>
-        <Text style={errStyles.message}>{message}</Text>
+    <View style={err.root}>
+      <View style={err.card}>
+        <Text style={err.title}>Analysis Failed</Text>
+        <Text style={err.message}>{message}</Text>
       </View>
-      <Button title="Try Again" onPress={onRetry} style={{ marginTop: spacing.md }} />
+      <Button title="Try Again" onPress={onRetry} style={err.btn} />
+    </View>
+  );
+}
+
+function CriterionRow({ item }) {
+  const ok = item.status === 'correct';
+  return (
+    <View style={[row.wrap, ok ? row.ok : row.bad]}>
+      <View style={[row.indicator, { backgroundColor: ok ? colors.success : colors.warning }]} />
+      <View style={row.body}>
+        <Text style={row.label}>{item.label}</Text>
+        <Text style={row.message}>{item.message}</Text>
+      </View>
     </View>
   );
 }
@@ -65,7 +67,6 @@ function ErrorState({ message, onRetry }) {
 export default function FeedbackScreen({ navigation, route }) {
   const { imageUri, projection } = route.params;
   const insets = useSafeAreaInsets();
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -74,29 +75,25 @@ export default function FeedbackScreen({ navigation, route }) {
     setLoading(true);
     setError(null);
     setResult(null);
-
     try {
-      const data = await analyzePositioning(imageUri, projection);
-      setResult(data);
+      setResult(await analyzePositioning(imageUri, projection));
     } catch (e) {
-      setError(e.message || 'Unknown error occurred. Check your API key and internet connection.');
+      setError(e.message || 'Unknown error. Check internet connection.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    runAnalysis();
-  }, []);
+  useEffect(() => { runAnalysis(); }, []);
 
   const isGood = result?.overall === 'good';
-  const correctCount = result?.feedback?.filter((f) => f.status === 'correct').length ?? 0;
-  const totalCount = result?.feedback?.length ?? 0;
+  const correctCount = result?.feedback?.filter(f => f.status === 'correct').length ?? 0;
+  const total = result?.feedback?.length ?? 6;
 
   return (
     <View style={styles.root}>
       <Header
-        title="AI Feedback"
+        title="Feedback"
         subtitle={`${projection.label} — ${projection.fullName}`}
         onBack={() => navigation.goBack()}
       />
@@ -106,102 +103,68 @@ export default function FeedbackScreen({ navigation, route }) {
 
       {!loading && result && (
         <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + spacing.xxl },
-          ]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxl }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Overall result banner */}
-          <View style={[styles.banner, isGood ? styles.bannerGood : styles.bannerNeeds]}>
-            <View style={styles.bannerLeft}>
-              <Text style={styles.bannerIcon}>{isGood ? '✅' : '⚠️'}</Text>
-              <View>
-                <Text style={styles.bannerTitle}>
-                  {isGood ? 'Good Positioning!' : 'Correction Needed'}
-                </Text>
-                <Text style={styles.bannerSub}>
-                  {correctCount}/{totalCount} criteria passed
-                </Text>
-              </View>
+          {/* Score banner */}
+          <View style={[styles.banner, isGood ? styles.bannerGood : styles.bannerBad]}>
+            <View style={styles.bannerInfo}>
+              <Text style={styles.bannerTitle}>
+                {isGood ? 'Good positioning' : 'Correction needed'}
+              </Text>
+              <Text style={styles.bannerSub}>{correctCount} of {total} criteria passed</Text>
             </View>
-            <ScoreRing score={result.score} />
+            <View style={styles.scoreBox}>
+              <Text style={[styles.scoreNum, { color: isGood ? colors.success : colors.warning }]}>
+                {result.score}
+              </Text>
+              <Text style={styles.scoreMax}>/100</Text>
+            </View>
           </View>
 
           {/* Summary */}
-          {result.summary && (
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>AI Summary</Text>
+          {!!result.summary && (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>Summary</Text>
               <Text style={styles.summaryText}>{result.summary}</Text>
             </View>
           )}
 
-          {/* Captured image thumbnail */}
-          <View style={styles.imageRow}>
-            <Image source={{ uri: imageUri }} style={styles.thumb} resizeMode="cover" />
-            <View style={styles.imageInfo}>
-              <Text style={styles.imageInfoLabel}>Analyzed Image</Text>
-              <Text style={styles.imageInfoProjection}>{projection.icon} {projection.fullName}</Text>
-              <View style={[styles.scoreChip, { backgroundColor: isGood ? colors.successLight : colors.warningLight }]}>
-                <Text style={[styles.scoreChipText, { color: isGood ? colors.success : colors.warning }]}>
-                  Score: {result.score}/100
-                </Text>
-              </View>
-            </View>
+          {/* Reference diagram */}
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Reference — Ideal Position</Text>
+            <HandDiagram projectionId={projection.id} />
           </View>
 
-          {/* Raw AI text — always shown */}
-          <View style={styles.rawCard}>
-            <Text style={styles.rawLabel}>📋 AI Feedback</Text>
-            <Text style={styles.rawText}>{result.rawText}</Text>
-          </View>
-
-          {/* Parsed feedback items — shown if parsing worked */}
-          {result.feedback.some(f => f.message) && (
-            <>
-              <Text style={styles.sectionLabel}>Breakdown</Text>
-              {result.feedback.map((item) => (
-                <FeedbackItem key={item.criterion} item={item} />
-              ))}
-            </>
-          )}
-
-          {/* Reference reminder */}
-          <View style={styles.refReminder}>
-            <Text style={styles.refReminderTitle}>📖 Reference Standard</Text>
-            <Text style={styles.refReminderText}>{projection.description}</Text>
+          {/* Criteria */}
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Detailed assessment</Text>
+            {result.feedback.map(item => (
+              <CriterionRow key={item.criterion} item={item} />
+            ))}
           </View>
 
           {/* Actions */}
           <View style={styles.actions}>
             <Button
               title="Practice Again"
-              icon="🔄"
               onPress={() => navigation.navigate('Camera', { projection })}
-              style={styles.actionBtn}
             />
             <Button
               title="Choose Different Projection"
-              icon="📐"
               variant="secondary"
               onPress={() => navigation.navigate('ExamType')}
-              style={styles.actionBtn}
             />
             <Button
-              title="Return Home"
-              icon="🏠"
+              title="Home"
               variant="ghost"
               onPress={() => navigation.navigate('Home')}
-              style={styles.actionBtn}
             />
           </View>
 
-          {/* Disclaimer */}
-          <View style={styles.disclaimer}>
-            <Text style={styles.disclaimerText}>
-              ⚕️ This feedback is AI-generated (Gemini Vision) for educational purposes only. It is not a clinical assessment.
-            </Text>
-          </View>
+          <Text style={styles.disclaimer}>
+            AI-generated feedback for educational purposes only.
+          </Text>
         </ScrollView>
       )}
     </View>
@@ -210,138 +173,80 @@ export default function FeedbackScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md },
+  scroll: { padding: spacing.lg, gap: spacing.md },
+
   banner: {
     borderRadius: radius.lg,
     padding: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    ...shadows.md,
+    ...shadows.sm,
   },
-  bannerGood: { backgroundColor: colors.successLight, borderWidth: 1, borderColor: colors.success },
-  bannerNeeds: { backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning },
-  bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
-  bannerIcon: { fontSize: 28 },
+  bannerGood: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: colors.success },
+  bannerBad:  { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: colors.warning },
+  bannerInfo: { flex: 1 },
   bannerTitle: { ...typography.h3, color: colors.textPrimary },
-  bannerSub: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
-  summaryCard: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    ...shadows.sm,
-  },
-  summaryLabel: { ...typography.label, color: colors.primary, marginBottom: spacing.xs },
-  summaryText: { ...typography.body, color: colors.textPrimary, lineHeight: 22 },
-  imageRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    ...shadows.sm,
-  },
-  thumb: {
-    width: 90,
-    height: 100,
-    borderRadius: radius.md,
-    backgroundColor: colors.border,
-  },
-  imageInfo: { flex: 1, justifyContent: 'center', gap: spacing.xs },
-  imageInfoLabel: { ...typography.label, color: colors.textMuted },
-  imageInfoProjection: { ...typography.h4, color: colors.textPrimary },
-  scoreChip: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-  },
-  scoreChipText: { ...typography.label, fontSize: 11 },
-  sectionLabel: { ...typography.label, color: colors.textMuted },
-  rawCard: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.accent,
-    ...shadows.sm,
-  },
-  rawLabel: { ...typography.label, color: colors.primary, marginBottom: spacing.sm },
-  rawText: { ...typography.body, color: colors.textPrimary, lineHeight: 24 },
-  refReminder: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  refReminderTitle: { ...typography.h4, color: colors.primary, marginBottom: spacing.xs },
-  refReminderText: { ...typography.bodySmall, color: colors.textSecondary },
-  actions: { gap: spacing.sm },
-  actionBtn: { width: '100%' },
-  disclaimer: {
-    backgroundColor: colors.overlay,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  disclaimerText: { ...typography.bodySmall, color: colors.textSecondary, textAlign: 'center' },
-});
+  bannerSub: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 3 },
+  scoreBox: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  scoreNum: { fontSize: 36, fontWeight: '800', lineHeight: 40 },
+  scoreMax: { ...typography.bodySmall, color: colors.textMuted },
 
-const loadStyles = StyleSheet.create({
-  root: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-    gap: spacing.lg,
-  },
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.xl,
-    padding: spacing.xxl,
-    alignItems: 'center',
-    gap: spacing.md,
-    ...shadows.lg,
-    width: '100%',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadows.sm,
+  },
+  cardLabel: { ...typography.label, color: colors.textMuted },
+  summaryText: { ...typography.body, color: colors.textPrimary, lineHeight: 23 },
+
+  actions: { gap: spacing.sm },
+  disclaimer: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+});
+
+const row = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row',
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  ok:  { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' },
+  bad: { borderColor: '#FDE68A', backgroundColor: '#FFFBEB' },
+  indicator: { width: 4 },
+  body: { flex: 1, padding: spacing.sm, gap: 3 },
+  label: { ...typography.h4, color: colors.textPrimary, fontSize: 14 },
+  message: { ...typography.bodySmall, color: colors.textSecondary, lineHeight: 18 },
+});
+
+const load = StyleSheet.create({
+  root: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.lg },
+  card: {
+    backgroundColor: colors.white, borderRadius: radius.xl,
+    padding: spacing.xl, alignItems: 'center', gap: spacing.md,
+    ...shadows.lg, width: '100%',
   },
   title: { ...typography.h3, color: colors.textPrimary },
   step: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  dotRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: spacing.sm,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-  },
-  dotActive: { backgroundColor: colors.primary },
-  note: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center' },
+  dots: { flexDirection: 'row', gap: 6, marginTop: spacing.xs },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
+  dotOn: { backgroundColor: colors.primary },
 });
 
-const errStyles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+const err = StyleSheet.create({
+  root: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
   card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.md,
-    ...shadows.md,
-    width: '100%',
+    backgroundColor: colors.white, borderRadius: radius.xl,
+    padding: spacing.xl, alignItems: 'center', gap: spacing.sm,
+    ...shadows.md, width: '100%',
   },
-  icon: { fontSize: 40 },
   title: { ...typography.h3, color: colors.error },
-  message: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  message: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  btn: { width: '100%' },
 });

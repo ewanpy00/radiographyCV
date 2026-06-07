@@ -1,60 +1,49 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  Pressable,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '../components/Header';
 import Button from '../components/Button';
+import HandDiagram from '../components/HandDiagram';
 import { PROJECTION_LIST } from '../constants/projections';
 import { colors, typography, spacing, radius, shadows } from '../constants/theme';
 
-function ReferenceModal({ projection, visible, onClose }) {
+function ReferenceModal({ projection, onClose }) {
+  const insets = useSafeAreaInsets();
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={modalStyles.root}>
-        <View style={modalStyles.handle} />
-        <View style={modalStyles.header}>
-          <Text style={modalStyles.icon}>{projection?.icon}</Text>
-          <Text style={modalStyles.title}>{projection?.fullName}</Text>
-          <Text style={modalStyles.subtitle}>{projection?.id} Projection</Text>
+    <Modal animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={[modal.root, { paddingBottom: insets.bottom }]}>
+        <View style={modal.handle} />
+        <View style={modal.header}>
+          <Text style={modal.title}>{projection.fullName}</Text>
+          <Text style={modal.subtitle}>{projection.id} Projection</Text>
         </View>
+        <ScrollView contentContainerStyle={modal.content} showsVerticalScrollIndicator={false}>
+          {/* Diagram with annotated key points */}
+          <Text style={modal.sectionLabel}>POSITIONING DIAGRAM</Text>
+          <HandDiagram projectionId={projection.id} />
 
-        <ScrollView
-          contentContainerStyle={modalStyles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={modalStyles.sectionLabel}>Overview</Text>
-          <View style={modalStyles.overviewCard}>
-            <Text style={modalStyles.overview}>{projection?.description}</Text>
-          </View>
+          <Text style={modal.sectionLabel}>OVERVIEW</Text>
+          <Text style={modal.overviewText}>{projection.description}</Text>
 
-          <Text style={modalStyles.sectionLabel}>Reference Standard</Text>
-          <View style={modalStyles.refCard}>
-            <Text style={modalStyles.refText}>{projection?.referenceDescription}</Text>
-          </View>
-
-          <Text style={modalStyles.sectionLabel}>Positioning Checklist</Text>
-          {projection?.checkpoints.map((cp, i) => (
-            <View key={i} style={modalStyles.checkItem}>
-              <Text style={modalStyles.checkBox}>☐</Text>
-              <Text style={modalStyles.checkText}>{cp}</Text>
+          <Text style={modal.sectionLabel}>KEY POINTS TO CHECK</Text>
+          {projection.checkpoints.map((cp, i) => (
+            <View key={i} style={modal.checkRow}>
+              <View style={[modal.checkNum, { backgroundColor: projection.color }]}>
+                <Text style={modal.checkNumText}>{i + 1}</Text>
+              </View>
+              <Text style={modal.checkText}>{cp}</Text>
             </View>
           ))}
-        </ScrollView>
 
-        <View style={modalStyles.footer}>
-          <Button title="Close Reference" onPress={onClose} variant="secondary" />
+          <Text style={modal.sectionLabel}>FULL REFERENCE STANDARD</Text>
+          <View style={modal.refBox}>
+            <Text style={modal.refText}>{projection.referenceDescription}</Text>
+          </View>
+        </ScrollView>
+        <View style={modal.footer}>
+          <Button title="Close" onPress={onClose} />
         </View>
       </View>
     </Modal>
@@ -66,107 +55,61 @@ export default function ExamTypeScreen({ navigation }) {
   const [selected, setSelected] = useState(null);
   const [showRef, setShowRef] = useState(false);
 
-  const selectedProjection = PROJECTION_LIST.find((p) => p.id === selected);
+  const projection = PROJECTION_LIST.find(p => p.id === selected);
 
   return (
     <View style={styles.root}>
-      <Header
-        title="Choose Projection"
-        subtitle="Select a hand X-ray view"
-        onBack={() => navigation.goBack()}
-      />
-
+      <Header title="Choose Projection" onBack={() => navigation.goBack()} />
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + spacing.xxl },
-        ]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.instruction}>
-          Select the projection you want to practice:
-        </Text>
+        <Text style={styles.instruction}>Select the hand projection to practice:</Text>
 
         <View style={styles.grid}>
-          {PROJECTION_LIST.map((proj) => {
-            const isSelected = selected === proj.id;
+          {PROJECTION_LIST.map(p => {
+            const active = selected === p.id;
             return (
               <TouchableOpacity
-                key={proj.id}
-                style={[
-                  styles.card,
-                  isSelected && styles.cardSelected,
-                  { borderColor: isSelected ? proj.color : colors.border },
-                ]}
-                onPress={() => setSelected(proj.id)}
-                activeOpacity={0.8}
+                key={p.id}
+                style={[styles.card, active && styles.cardActive]}
+                onPress={() => setSelected(p.id)}
+                activeOpacity={0.75}
               >
-                {isSelected && (
-                  <View style={[styles.selectedBadge, { backgroundColor: proj.color }]}>
-                    <Text style={styles.selectedBadgeText}>✓ Selected</Text>
-                  </View>
-                )}
-                <Text style={styles.cardIcon}>{proj.icon}</Text>
-                <Text style={[styles.cardLabel, isSelected && { color: proj.color }]}>
-                  {proj.label}
-                </Text>
-                <Text style={styles.cardFullName}>{proj.fullName}</Text>
-                <Text style={styles.cardDesc} numberOfLines={2}>
-                  {proj.description}
-                </Text>
-
+                {active && <View style={[styles.activeDot, { backgroundColor: p.color }]} />}
+                <Text style={[styles.cardCode, active && { color: p.color }]}>{p.label}</Text>
+                <Text style={styles.cardName}>{p.fullName}</Text>
+                <Text style={styles.cardDesc} numberOfLines={2}>{p.description}</Text>
                 <TouchableOpacity
-                  style={[styles.refBtn, { borderColor: proj.color }]}
-                  onPress={() => {
-                    setSelected(proj.id);
-                    setShowRef(true);
-                  }}
-                  activeOpacity={0.7}
+                  onPress={() => { setSelected(p.id); setShowRef(true); }}
+                  style={styles.refLink}
+                  activeOpacity={0.6}
                 >
-                  <Text style={[styles.refBtnText, { color: proj.color }]}>
-                    View Reference →
-                  </Text>
+                  <Text style={[styles.refLinkText, { color: p.color }]}>View reference</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {selected && (
-          <View style={styles.selectedInfo}>
-            <Text style={styles.selectedInfoText}>
-              Selected: <Text style={{ fontWeight: '700' }}>{selectedProjection?.fullName}</Text>
-            </Text>
-          </View>
-        )}
-
         <View style={styles.actions}>
           {selected && (
             <Button
               title="View Reference Guide"
-              icon="📖"
               variant="secondary"
               onPress={() => setShowRef(true)}
-              style={{ marginBottom: spacing.sm }}
             />
           )}
           <Button
-            title={selected ? 'Open Camera' : 'Select a Projection First'}
-            icon="📷"
+            title={selected ? 'Open Camera' : 'Select a projection first'}
             disabled={!selected}
-            onPress={() =>
-              navigation.navigate('Camera', { projection: selectedProjection })
-            }
+            onPress={() => navigation.navigate('Camera', { projection })}
           />
         </View>
       </ScrollView>
 
-      {showRef && selectedProjection && (
-        <ReferenceModal
-          projection={selectedProjection}
-          visible={showRef}
-          onClose={() => setShowRef(false)}
-        />
+      {showRef && projection && (
+        <ReferenceModal projection={projection} onClose={() => setShowRef(false)} />
       )}
     </View>
   );
@@ -174,151 +117,83 @@ export default function ExamTypeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  instruction: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
+  content: { padding: spacing.lg, gap: spacing.lg },
+  instruction: { ...typography.body, color: colors.textSecondary },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   card: {
     width: '47%',
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: spacing.md,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    gap: spacing.xs,
     ...shadows.sm,
     position: 'relative',
     overflow: 'hidden',
   },
-  cardSelected: {
-    backgroundColor: '#F0FBFD',
-    ...shadows.md,
+  cardActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#F5FEFF',
   },
-  selectedBadge: {
+  activeDot: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    borderBottomLeftRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  selectedBadgeText: {
-    ...typography.label,
-    fontSize: 9,
-    color: colors.white,
-  },
-  cardIcon: { fontSize: 32, marginBottom: spacing.sm },
-  cardLabel: {
-    ...typography.h2,
+  cardCode: {
+    fontSize: 26,
+    fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 2,
+    letterSpacing: -0.5,
   },
-  cardFullName: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    fontWeight: '600',
-  },
-  cardDesc: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-    lineHeight: 17,
-  },
-  refBtn: {
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingVertical: 5,
-    alignItems: 'center',
-  },
-  refBtnText: { ...typography.bodySmall, fontWeight: '600' },
-  selectedInfo: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  selectedInfoText: { ...typography.body, color: colors.primary },
+  cardName: { ...typography.bodySmall, color: colors.textMuted, fontWeight: '600' },
+  cardDesc: { ...typography.bodySmall, color: colors.textSecondary, lineHeight: 17, marginTop: 2 },
+  refLink: { marginTop: spacing.xs },
+  refLinkText: { ...typography.bodySmall, fontWeight: '600' },
   actions: { gap: spacing.sm },
 });
 
-const modalStyles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+const modal = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: colors.border, alignSelf: 'center', marginTop: spacing.md,
   },
   header: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.white,
   },
-  icon: { fontSize: 40, marginBottom: spacing.sm },
-  title: { ...typography.h2, color: colors.white, textAlign: 'center' },
-  subtitle: {
-    ...typography.body,
-    color: 'rgba(255,255,255,0.75)',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  overviewCard: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  overview: { ...typography.body, color: colors.textPrimary },
-  refCard: {
+  title: { ...typography.h2, color: colors.textPrimary },
+  subtitle: { ...typography.bodySmall, color: colors.textMuted, marginTop: 2 },
+  content: { padding: spacing.lg, gap: spacing.md },
+  sectionLabel: { ...typography.label, color: colors.textMuted, marginTop: spacing.sm },
+  overviewText: { ...typography.body, color: colors.textPrimary, lineHeight: 22 },
+  refBox: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
     padding: spacing.md,
-    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   refText: {
     ...typography.bodySmall,
     color: colors.textPrimary,
-    fontFamily: 'monospace',
     lineHeight: 20,
+    fontFamily: 'monospace',
   },
-  checkItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.xs },
+  checkNum: {
+    width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1,
   },
-  checkBox: { fontSize: 18, color: colors.primary },
-  checkText: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  footer: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.white,
-  },
+  checkNumText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  checkText: { ...typography.body, color: colors.textSecondary, flex: 1, lineHeight: 22 },
+  footer: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.white },
 });

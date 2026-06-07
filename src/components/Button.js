@@ -40,27 +40,23 @@ export default function Button({
 const styles = StyleSheet.create({
   base: {
     borderRadius: radius.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: 14,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    ...shadows.md,
+    minHeight: 50,
   },
   primary: {
     backgroundColor: colors.primary,
+    ...shadows.sm,
   },
   secondary: {
     backgroundColor: colors.white,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.primary,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   ghost: {
     backgroundColor: 'transparent',
-    shadowOpacity: 0,
-    elevation: 0,
   },
   disabled: {
     opacity: 0.45,

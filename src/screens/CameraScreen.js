@@ -1,13 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Alert,
-  ScrollView,
-  Platform,
+  View, Text, StyleSheet, TouchableOpacity, Image, Alert, ScrollView,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,7 +13,6 @@ export default function CameraScreen({ navigation, route }) {
   const { projection } = route.params;
   const insets = useSafeAreaInsets();
   const cameraRef = useRef(null);
-
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState('back');
   const [capturedUri, setCapturedUri] = useState(null);
@@ -28,13 +20,9 @@ export default function CameraScreen({ navigation, route }) {
 
   const openCamera = useCallback(async () => {
     if (!permission?.granted) {
-      const result = await requestPermission();
-      if (!result.granted) {
-        Alert.alert(
-          'Camera Permission Required',
-          'Please allow camera access in your device settings to capture positioning images.',
-          [{ text: 'OK' }]
-        );
+      const r = await requestPermission();
+      if (!r.granted) {
+        Alert.alert('Camera Permission Required', 'Allow camera access in your device settings.');
         return;
       }
     }
@@ -44,11 +32,7 @@ export default function CameraScreen({ navigation, route }) {
   const takePicture = useCallback(async () => {
     if (!cameraRef.current) return;
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
-        base64: false,
-        exif: false,
-      });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, exif: false });
       setCapturedUri(photo.uri);
       setShowCamera(false);
     } catch (e) {
@@ -73,107 +57,75 @@ export default function CameraScreen({ navigation, route }) {
     }
   }, []);
 
-  const retake = () => {
-    setCapturedUri(null);
-    setShowCamera(false);
-  };
-
-  const analyze = () => {
-    navigation.navigate('Feedback', { imageUri: capturedUri, projection });
-  };
-
   // ── Camera viewfinder ────────────────────────────────────────────
   if (showCamera) {
     return (
       <View style={styles.cameraRoot}>
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing={facing}
-        >
-          {/* Top overlay */}
+        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing}>
+          {/* Top bar */}
           <View style={[styles.camTop, { paddingTop: insets.top + spacing.sm }]}>
-            <TouchableOpacity onPress={() => setShowCamera(false)} style={styles.camBackBtn}>
-              <Text style={styles.camBackText}>✕ Cancel</Text>
+            <TouchableOpacity onPress={() => setShowCamera(false)} style={styles.camBtn}>
+              <Text style={styles.camBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <View style={styles.camBadge}>
-              <Text style={styles.camBadgeText}>{projection.icon} {projection.label}</Text>
+            <View style={styles.camLabel}>
+              <Text style={styles.camLabelText}>{projection.label}</Text>
             </View>
             <TouchableOpacity
-              onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
-              style={styles.camBackBtn}
+              onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')}
+              style={styles.camBtn}
             >
-              <Text style={styles.camBackText}>🔄 Flip</Text>
+              <Text style={styles.camBtnText}>Flip</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Guide overlay */}
-          <View style={styles.guideWrap}>
-            <View style={styles.guideBox}>
-              <View style={[styles.corner, styles.cornerTL]} />
-              <View style={[styles.corner, styles.cornerTR]} />
-              <View style={[styles.corner, styles.cornerBL]} />
-              <View style={[styles.corner, styles.cornerBR]} />
-              <Text style={styles.guideText}>Position hand within frame</Text>
+          {/* Frame guide */}
+          <View style={styles.frameWrap}>
+            <View style={styles.frame}>
+              <View style={[styles.corner, styles.tl]} />
+              <View style={[styles.corner, styles.tr]} />
+              <View style={[styles.corner, styles.bl]} />
+              <View style={[styles.corner, styles.br]} />
             </View>
+            <Text style={styles.frameHint}>Position your hand within the frame</Text>
           </View>
 
           {/* Bottom controls */}
           <View style={[styles.camBottom, { paddingBottom: insets.bottom + spacing.lg }]}>
-            <TouchableOpacity onPress={pickFromLibrary} style={styles.sideBtn}>
-              <Text style={styles.sideBtnIcon}>🖼️</Text>
-              <Text style={styles.sideBtnLabel}>Gallery</Text>
+            <TouchableOpacity onPress={pickFromLibrary} style={styles.sideControl}>
+              <Text style={styles.sideControlText}>Library</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={takePicture} style={styles.shutter} activeOpacity={0.85}>
+            <TouchableOpacity onPress={takePicture} style={styles.shutter} activeOpacity={0.8}>
               <View style={styles.shutterInner} />
             </TouchableOpacity>
-            <View style={styles.sideBtn} />
+            <View style={styles.sideControl} />
           </View>
         </CameraView>
       </View>
     );
   }
 
-  // ── Preview / Review captured image ────────────────────────────
+  // ── Review captured photo ────────────────────────────────────────
   if (capturedUri) {
     return (
       <View style={styles.root}>
-        <Header
-          title="Review Photo"
-          subtitle={`${projection.label} — ${projection.fullName}`}
-          onBack={retake}
-        />
-        <ScrollView
-          contentContainerStyle={[
-            styles.previewContent,
-            { paddingBottom: insets.bottom + spacing.xxl },
-          ]}
-        >
+        <Header title="Review Photo" subtitle={projection.fullName} onBack={() => setCapturedUri(null)} />
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}>
           <Image source={{ uri: capturedUri }} style={styles.preview} resizeMode="cover" />
-
-          <View style={styles.tipCard}>
-            <Text style={styles.tipTitle}>Before analyzing, confirm:</Text>
+          <View style={styles.checkCard}>
+            <Text style={styles.checkTitle}>Before analyzing, confirm:</Text>
             {projection.checkpoints.map((cp, i) => (
-              <View key={i} style={styles.tipItem}>
-                <Text style={styles.tipBullet}>•</Text>
-                <Text style={styles.tipText}>{cp}</Text>
+              <View key={i} style={styles.checkRow}>
+                <View style={styles.checkDot} />
+                <Text style={styles.checkText}>{cp}</Text>
               </View>
             ))}
           </View>
-
-          <View style={styles.previewActions}>
+          <View style={styles.actions}>
+            <Button title="Retake" variant="secondary" onPress={() => setCapturedUri(null)} style={styles.half} />
             <Button
-              title="Retake Photo"
-              icon="🔄"
-              variant="secondary"
-              onPress={retake}
-              style={styles.halfBtn}
-            />
-            <Button
-              title="Analyze Positioning"
-              icon="🔬"
-              onPress={analyze}
-              style={styles.halfBtn}
+              title="Analyze"
+              onPress={() => navigation.navigate('Feedback', { imageUri: capturedUri, projection })}
+              style={styles.half}
             />
           </View>
         </ScrollView>
@@ -181,230 +133,154 @@ export default function CameraScreen({ navigation, route }) {
     );
   }
 
-  // ── Default: Prompt to capture ──────────────────────────────────
+  // ── Default: capture prompt ──────────────────────────────────────
   return (
     <View style={styles.root}>
-      <Header
-        title="Capture Image"
-        subtitle={`${projection.label} — ${projection.fullName}`}
-        onBack={() => navigation.goBack()}
-      />
-
+      <Header title="Capture Image" subtitle={projection.fullName} onBack={() => navigation.goBack()} />
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + spacing.xxl },
-        ]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Projection reminder */}
-        <View style={[styles.projCard, { borderColor: projection.color }]}>
-          <Text style={styles.projIcon}>{projection.icon}</Text>
-          <View style={styles.projInfo}>
-            <Text style={[styles.projLabel, { color: projection.color }]}>
-              {projection.fullName}
-            </Text>
-            <Text style={styles.projDesc}>{projection.description}</Text>
-          </View>
+        <View style={styles.projBadge}>
+          <Text style={[styles.projCode, { color: projection.color }]}>{projection.label}</Text>
+          <Text style={styles.projName}>{projection.fullName}</Text>
+          <Text style={styles.projDesc}>{projection.description}</Text>
         </View>
 
-        {/* Photo placeholder */}
-        <TouchableOpacity style={styles.placeholder} onPress={openCamera} activeOpacity={0.8}>
-          <Text style={styles.placeholderIcon}>📷</Text>
-          <Text style={styles.placeholderTitle}>Tap to Open Camera</Text>
-          <Text style={styles.placeholderSub}>Position your hand and capture a photo</Text>
+        <TouchableOpacity style={styles.placeholder} onPress={openCamera} activeOpacity={0.75}>
+          <Text style={styles.placeholderTitle}>Tap to open camera</Text>
+          <Text style={styles.placeholderSub}>or choose from library below</Text>
         </TouchableOpacity>
 
-        {/* Tips */}
         <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>📋 Positioning Tips</Text>
+          <Text style={styles.tipsTitle}>Positioning checklist</Text>
           {projection.checkpoints.map((cp, i) => (
-            <View key={i} style={styles.tipRow}>
-              <Text style={styles.tipNum}>{i + 1}.</Text>
-              <Text style={styles.tipRowText}>{cp}</Text>
+            <View key={i} style={styles.checkRow}>
+              <Text style={styles.checkNum}>{i + 1}.</Text>
+              <Text style={styles.checkText}>{cp}</Text>
             </View>
           ))}
         </View>
 
-        {/* Lighting tip */}
-        <View style={styles.lightingTip}>
-          <Text style={styles.lightingIcon}>💡</Text>
-          <Text style={styles.lightingText}>
-            Use good, even lighting. Place your hand on a flat, contrasting surface for best results.
-          </Text>
-        </View>
-
-        <View style={styles.actions}>
-          <Button title="Open Camera" icon="📷" onPress={openCamera} />
-          <Button
-            title="Choose from Library"
-            icon="🖼️"
-            variant="secondary"
-            onPress={pickFromLibrary}
-          />
+        <View style={styles.actionsCol}>
+          <Button title="Open Camera" onPress={openCamera} />
+          <Button title="Choose from Library" variant="secondary" onPress={pickFromLibrary} />
         </View>
       </ScrollView>
     </View>
   );
 }
 
-const CORNER_SIZE = 22;
-const CORNER_THICKNESS = 3;
+const C = 20;
+const T = 3;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg, gap: spacing.md },
   cameraRoot: { flex: 1, backgroundColor: '#000' },
 
-  // Camera UI
   camTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  camBackBtn: { padding: spacing.sm },
-  camBackText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  camBadge: {
+  camBtn: { padding: spacing.sm },
+  camBtnText: { color: '#fff', fontSize: 15, fontWeight: '500' },
+  camLabel: {
     backgroundColor: colors.primary,
     borderRadius: radius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
   },
-  camBadgeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  guideWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  guideBox: {
-    width: 260,
-    height: 320,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  corner: {
-    position: 'absolute',
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    borderColor: colors.accent,
-  },
-  cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
-  cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
-  cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS },
-  cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS },
-  guideText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    textAlign: 'center',
-    position: 'absolute',
-    bottom: -28,
-  },
+  camLabelText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  frameWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
+  frame: { width: 240, height: 300, position: 'relative' },
+  corner: { position: 'absolute', width: C, height: C, borderColor: 'rgba(255,255,255,0.9)' },
+  tl: { top: 0, left: 0, borderTopWidth: T, borderLeftWidth: T },
+  tr: { top: 0, right: 0, borderTopWidth: T, borderRightWidth: T },
+  bl: { bottom: 0, left: 0, borderBottomWidth: T, borderLeftWidth: T },
+  br: { bottom: 0, right: 0, borderBottomWidth: T, borderRightWidth: T },
+  frameHint: { color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center' },
+
   camBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
+  sideControl: { width: 64, alignItems: 'center' },
+  sideControlText: { color: '#fff', fontSize: 13 },
   shutter: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 3,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 70, height: 70, borderRadius: 35,
+    borderWidth: 3, borderColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
   },
-  shutterInner: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#fff',
-  },
-  sideBtn: {
-    width: 60,
-    alignItems: 'center',
-  },
-  sideBtnIcon: { fontSize: 24 },
-  sideBtnLabel: { color: '#fff', fontSize: 11, marginTop: 4 },
+  shutterInner: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff' },
 
-  // Preview
-  previewContent: { padding: spacing.lg, gap: spacing.md },
   preview: {
     width: '100%',
-    height: 320,
+    height: 340,
     borderRadius: radius.lg,
     backgroundColor: colors.border,
-    ...shadows.md,
   },
-  tipCard: {
+  checkCard: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: spacing.md,
-    ...shadows.sm,
-  },
-  tipTitle: { ...typography.h4, color: colors.textPrimary, marginBottom: spacing.sm },
-  tipItem: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.xs },
-  tipBullet: { color: colors.primary, fontWeight: '700' },
-  tipText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1 },
-  previewActions: {
-    flexDirection: 'row',
     gap: spacing.sm,
+    ...shadows.sm,
   },
-  halfBtn: { flex: 1 },
+  checkTitle: { ...typography.h4, color: colors.textPrimary },
+  checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  checkDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: colors.primary, marginTop: 8, flexShrink: 0,
+  },
+  checkNum: { ...typography.body, color: colors.primary, fontWeight: '700', width: 18 },
+  checkText: { ...typography.body, color: colors.textSecondary, flex: 1, lineHeight: 21 },
+  actions: { flexDirection: 'row', gap: spacing.sm },
+  actionsCol: { gap: spacing.sm },
+  half: { flex: 1 },
 
-  // Default state
-  projCard: {
+  projBadge: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderWidth: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    gap: 4,
     ...shadows.sm,
   },
-  projIcon: { fontSize: 36 },
-  projInfo: { flex: 1 },
-  projLabel: { ...typography.h4, marginBottom: 2 },
-  projDesc: { ...typography.bodySmall, color: colors.textSecondary },
+  projCode: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  projName: { ...typography.bodySmall, color: colors.textMuted, fontWeight: '600' },
+  projDesc: { ...typography.bodySmall, color: colors.textSecondary, lineHeight: 18 },
+
   placeholder: {
     backgroundColor: colors.white,
     borderRadius: radius.xl,
-    height: 220,
+    height: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
-    gap: spacing.sm,
+    gap: spacing.xs,
     ...shadows.sm,
   },
-  placeholderIcon: { fontSize: 52 },
-  placeholderTitle: { ...typography.h3, color: colors.textPrimary },
-  placeholderSub: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center' },
+  placeholderTitle: { ...typography.h4, color: colors.textPrimary },
+  placeholderSub: { ...typography.bodySmall, color: colors.textMuted },
+
   tipsCard: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: spacing.md,
+    gap: spacing.sm,
     ...shadows.sm,
   },
-  tipsTitle: { ...typography.h4, color: colors.textPrimary, marginBottom: spacing.sm },
-  tipRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.xs },
-  tipNum: { color: colors.primary, fontWeight: '700', width: 20 },
-  tipRowText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1 },
-  lightingTip: {
-    backgroundColor: colors.overlay,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  lightingIcon: { fontSize: 18 },
-  lightingText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1 },
-  actions: { gap: spacing.sm },
+  tipsTitle: { ...typography.h4, color: colors.textPrimary },
 });
